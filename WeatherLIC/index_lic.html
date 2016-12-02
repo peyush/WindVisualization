@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+    <title>Wind Animation using LIC</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/3.17/esri/css/esri.css">
+
+    <style>
+      html,body {
+        width:100%;
+        height:100%;
+        margin: 0;
+        padding: 0px 0 0 0;
+      }
+
+      #mapCanvas {
+        padding:0;
+      }
+
+      #time {
+        position: absolute;
+        bottom: 100px;
+        left: 200px;
+        color: #fff;
+        font-size: 20px;
+        top: 10px;
+        right: 10px;
+        
+      }
+      #credit {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        color: #fff;
+        font-size: 14px;
+      }
+
+      #credit a {
+        color: #08c;
+      }
+
+      #test {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        color: #fff;
+        font-size: 14px;
+      }
+
+      #buttonDiv{
+        bottom: 100px;
+      }
+    </style>
+
+    <script>
+      var dojoConfig = {
+        paths: {
+          plugins: location.pathname.replace(/\/[^/]+$/, "") + "/plugins"
+        }
+      };
+    </script>
+    <script src="./windy.js"></script>
+    <script src="./vector.js"></script>
+    <script src="./point.js"></script>
+    <script src="./streamline.js"></script>
+    <script src="https://js.arcgis.com/3.17compact/"></script>
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script>
+    var timeMapFile = 2009;
+    var rasterLayer;
+     var canvasSupport;
+    function display(){
+        
+       var map;
+
+        require([
+          "esri/map", "esri/layers/ArcGISTiledMapServiceLayer",
+          "esri/domUtils", "esri/request",
+          "dojo/parser", "dojo/number", "dojo/json", "dojo/dom",
+          "dijit/registry", "plugins/RasterLayer","esri/layers/WebTiledLayer",
+          "esri/config",
+          "dojo/domReady!"
+        ], function(
+          Map, ArcGISTiledMapServiceLayer,
+          domUtils, esriRequest,
+          parser, number, JSON, dom,
+          registry, RasterLayer, WebTiledLayer, esriConfig
+        ){
+          parser.parse();
+          // does the browser support canvas?
+          canvasSupport = supports_canvas();
+
+          //Project the map
+          map = new Map("mapCanvas", {
+            //center: [-99.076+200, 39.132],
+            center: [0, 0],
+            zoom: 2,
+            basemap: "dark-gray"
+            //basemap: "hybrid"
+            //satellite, hybrid, topo, gray, dark-gray, oceans, osm, national-geographic
+          });
+          //map.on("load", mapLoaded);
+          //map.removeAllLayers();
+          map.disableScrollWheelZoom();
+
+          //function mapLoaded() {
+
+            // Add raster layer
+            if ( canvasSupport ) {
+              rasterLayer = new RasterLayer(null, {
+                opacity: 0.75
+              });
+              map.addLayer(rasterLayer);
+
+              map.on("extent-change", redraw);
+              map.on("resize", function(){});
+              map.on("zoom-start", redraw);
+              map.on("pan-start", redraw);
+
+         
+              var layersRequest ;
+              layersRequest = esriRequest({
+                url: './grb2_'+ timeMapFile +'.json',
+                content: {},
+                handleAs: "json"
+              });
+              
+              layersRequest.then(
+                function(response) {
+                  windy = new Windy({ canvas: rasterLayer._element, data: response });
+                  redraw();
+              }, function(error) {
+                  console.log("Error: ", error.message);
+              });
+               
+
+
+            } else {
+              dom.byId("mapCanvas").innerHTML = "This browser doesn't support canvas. Visit <a target='_blank' href='http://www.caniuse.com/#search=canvas'>caniuse.com</a> for supported browsers";
+            }
+          //}
+
+          
+        });
+
+        function redraw(){
+
+          rasterLayer._element.width = map.width;
+          rasterLayer._element.height = map.height;
+
+          windy.stop();
+
+          var extent = map.geographicExtent;
+          console.log(map.width, map.height);
+          setTimeout(function(){
+            windy.start(
+              [[0,0],[map.width, map.height]],
+              map.width,
+              map.height,
+              [[extent.xmin, extent.ymin],[extent.xmax, extent.ymax]]
+            );
+          },500);
+        }
+    };
+    // does the browser support canvas?
+    function supports_canvas() {
+      return !!document.createElement("canvas").getContext;
+    }
+
+    
+    </script>
+    <script type="text/javascript">
+      function nextDate(){
+        console.log("hi");
+        timeMapFile++;
+        if(timeMapFile == 2016) timeMapFile = 2008;
+        display();
+      }
+      display();
+    </script>
+  </head>
+
+  <body class="">
+     <div id="mapCanvas" style="height:100%;">
+     </div>
+     <div id="time">Date: </div>
+    <div id = "buttonDiv">
+      <button onclick="nextDate()" id = "nextButton">Next</button>
+    </div>
+     <!--<img id="canvasImg" alt="Right click to save me!">-->
+  </body>
+
+</html>
